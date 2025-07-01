@@ -45,14 +45,14 @@ Parámetros de consulta comunes:
 
 🚧 Development Roadmap
 - Semana	Tarea
-- 1	Configuración del proyecto + Docker (opcional)
+- 1	Configuración del proyecto + Docker
 - 2	CRUD de Géneros
 - 3	CRUD de Directores
 - 4	CRUD de Películas con relaciones
 - 5	Búsqueda, paginación, ordenamiento
 - 6	Documentación Swagger + validaciones
 - 7	Tests unitarios e integración
-- 8	Deploy en Render o Railway (opcional)
+- 8	Deploy en Render o Railway
 
 🔗 Logical Dependency Chain
 - Base de datos + TypeORM configurado
@@ -70,6 +70,6 @@ Parámetros de consulta comunes:
 
 📎 Appendix
 - Entidades modelo (con relaciones)
-- Diagrama de base de datos (puedo generarlo si deseas)
+- Diagrama de base de datos
 - Especificación Swagger JSON (al final del proyecto)
 - Script SQL para poblar datos de ejemplo
