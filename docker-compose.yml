@@ -1,36 +1,77 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
     restart: always
     environment:
-      POSTGRES_DB: movie_catalog
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB:-movie_catalog_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
     ports:
-      - "5432:5432"
+      - '${POSTGRES_PORT:-5433}:5432'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - movie-catalog-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-movie_catalog_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  app:
-    build: .
+  redis:
+    image: redis:7-alpine
     restart: always
     ports:
-      - "3000:3000"
-    depends_on:
-      - postgres
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      DB_PASSWORD: password
-      DB_NAME: movie_catalog
-      NODE_ENV: development
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
-      - ./src:/app/src
-      - ./package.json:/app/package.json
+      - redis_dev_data:/data
+    networks:
+      - movie-catalog-dev
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '${PORT:-3000}:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-dev_password_123}
+      DB_NAME: ${DB_NAME:-movie_catalog_dev}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      NODE_ENV: ${NODE_ENV:-development}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    volumes:
+      - ./src:/app/src # Hot reload - lectura/escritura
+      - ./package.json:/app/package.json:ro # Solo lectura - protección
+      - ./package-lock.json:/app/package-lock.json:ro # Solo lectura
+      - app_node_modules:/app/node_modules # Volumen separado para node_modules
+    networks:
+      - movie-catalog-dev
+    command: npm run start:dev
 
 volumes:
-  postgres_data: 
+  postgres_dev_data:
+  redis_dev_data:
+  app_node_modules: # Volumen separado para node_modules del contenedor
+
+networks:
+  movie-catalog-dev:

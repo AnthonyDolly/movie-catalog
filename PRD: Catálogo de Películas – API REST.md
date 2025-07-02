@@ -41,7 +41,6 @@ Parámetros de consulta comunes:
 - Cache (opcional): Redis para listas frecuentes
 - Logs: middleware propio (winston o pino)
 - Documentación: Swagger con NestJS @nestjs/swagger
-- Testing: Jest + Supertest (mínimo unit + integration)
 
 🚧 Development Roadmap
 - Semana	Tarea
@@ -51,8 +50,7 @@ Parámetros de consulta comunes:
 - 4	CRUD de Películas con relaciones
 - 5	Búsqueda, paginación, ordenamiento
 - 6	Documentación Swagger + validaciones
-- 7	Tests unitarios e integración
-- 8	Deploy en Render o Railway
+- 7	Deploy en Render o Railway
 
 🔗 Logical Dependency Chain
 - Base de datos + TypeORM configurado
