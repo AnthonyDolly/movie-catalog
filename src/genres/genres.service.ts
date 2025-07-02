@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Genre } from './entities/genre.entity';
@@ -9,6 +16,8 @@ import { CacheService } from '../common/services/cache.service';
 
 @Injectable()
 export class GenresService {
+  private readonly logger = new Logger(GenresService.name);
+
   constructor(
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
@@ -16,13 +25,28 @@ export class GenresService {
   ) {}
 
   async create(createGenreDto: CreateGenreDto): Promise<Genre> {
-    const genre = this.genreRepository.create(createGenreDto);
-    const savedGenre = await this.genreRepository.save(genre);
+    try {
+      const existingGenre = await this.findByName(createGenreDto.name);
+      if (existingGenre) {
+        throw new BadRequestException('Genre already exists');
+      }
+      const newGenre = this.genreRepository.create(createGenreDto);
+      const savedGenre = await this.genreRepository.save(newGenre);
 
-    // Clear cache after creating new genre
-    await this.cacheService.clearGenreCache();
+      // Clear cache after creating new genre
+      await this.cacheService.clearGenreCache();
 
-    return savedGenre;
+      return savedGenre;
+    } catch (error) {
+      // If it's already an HttpException (like BadRequestException), re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      // For unexpected database/system errors, log and throw Internal Server Error
+      this.logger.error('Unexpected error creating genre:', error);
+      throw new InternalServerErrorException('Error creating genre');
+    }
   }
 
   async findAll(

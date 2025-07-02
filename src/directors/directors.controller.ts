@@ -23,7 +23,7 @@ import { CreateDirectorDto } from './dto/create-director.dto';
 import { UpdateDirectorDto } from './dto/update-director.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 
-@ApiTags('directors')
+@ApiTags('Directors')
 @Controller('directors')
 export class DirectorsController {
   constructor(private readonly directorsService: DirectorsService) {}
