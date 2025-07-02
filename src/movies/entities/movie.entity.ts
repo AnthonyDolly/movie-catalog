@@ -28,7 +28,7 @@ export class Movie {
   duration: number; // Duration in minutes
 
   @ApiProperty({ description: 'Movie rating from 0.0 to 10.0', example: 8.7, required: false })
-  @Column({ type: 'decimal', precision: 3, scale: 1, nullable: true })
+  @Column({ type: 'float', nullable: true })
   rating: number; // Rating from 0.0 to 10.0
 
   @ApiProperty({ description: 'URL of the movie poster image', example: '/uploads/posters/poster-123.jpg', required: false })

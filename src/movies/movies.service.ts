@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder, MoreThanOrEqual } from 'typeorm';
 import { Movie } from './entities/movie.entity';
 import { Genre } from '../genres/entities/genre.entity';
 import { Director } from '../directors/entities/director.entity';
@@ -338,7 +338,7 @@ export class MoviesService {
       skip,
       order: { rating: 'DESC', createdAt: 'DESC' },
       where: {
-        rating: 4.0, // Only movies with rating >= 4.0
+        rating: MoreThanOrEqual(0), // Include all movies with rating (excluding null)
       },
     });
 
