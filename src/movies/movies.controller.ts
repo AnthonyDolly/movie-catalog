@@ -29,8 +29,9 @@ import { UpdateMovieDto } from './dto/update-movie.dto';
 import { MovieFilterDto, PaginationDto } from '../common/dto/pagination.dto';
 import { UploadService } from '../common/services/upload.service';
 import { FileValidationInterceptor } from '../common/interceptors/file-validation.interceptor';
+import { Movie } from './entities/movie.entity';
 
-@ApiTags('movies')
+@ApiTags('Movies')
 @Controller('movies')
 export class MoviesController {
   constructor(
@@ -43,6 +44,7 @@ export class MoviesController {
   @ApiResponse({
     status: 201,
     description: 'The movie has been successfully created.',
+    type: Movie,
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   create(@Body() createMovieDto: CreateMovieDto) {
@@ -98,75 +100,65 @@ export class MoviesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all movies with pagination, search and filters' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return all movies with pagination and filters applied.',
-  })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiOperation({ summary: 'Get all movies with optional filtering and pagination' })
+  @ApiResponse({ status: 200, description: 'Movies retrieved successfully' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by movie title' })
   @ApiQuery({ name: 'genre', required: false, type: String, description: 'Filter by genre name' })
   @ApiQuery({ name: 'director', required: false, type: String, description: 'Filter by director name' })
   @ApiQuery({ name: 'year', required: false, type: Number, description: 'Filter by release year' })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['title', 'releaseYear', 'rating', 'createdAt'] })
-  @ApiQuery({ name: 'order', required: false, enum: ['ASC', 'DESC'] })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['title', 'releaseYear', 'rating', 'createdAt'], description: 'Sort field' })
+  @ApiQuery({ name: 'order', required: false, enum: ['ASC', 'DESC'], description: 'Sort order' })
   findAll(@Query() filterDto: MovieFilterDto) {
     return this.moviesService.findAll(filterDto);
   }
 
+  @Get('popular')
+  @ApiOperation({ summary: 'Get popular movies (highest rated)' })
+  @ApiResponse({ status: 200, description: 'Popular movies retrieved successfully' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
+  findPopular(@Query() paginationDto: { page?: number; limit?: number }) {
+    return this.moviesService.findPopular(paginationDto);
+  }
+
   @Get('genre/:genreId')
   @ApiOperation({ summary: 'Get movies by genre' })
-  @ApiParam({ name: 'genreId', type: 'number' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({
-    status: 200,
-    description: 'Return movies filtered by genre.',
-  })
+  @ApiResponse({ status: 200, description: 'Movies by genre retrieved successfully' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   findByGenre(
     @Param('genreId', ParseIntPipe) genreId: number,
-    @Query() paginationDto: PaginationDto,
+    @Query() paginationDto: { page?: number; limit?: number },
   ) {
     return this.moviesService.findByGenre(genreId, paginationDto);
   }
 
   @Get('director/:directorId')
   @ApiOperation({ summary: 'Get movies by director' })
-  @ApiParam({ name: 'directorId', type: 'number' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({
-    status: 200,
-    description: 'Return movies filtered by director.',
-  })
+  @ApiResponse({ status: 200, description: 'Movies by director retrieved successfully' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
   findByDirector(
     @Param('directorId', ParseIntPipe) directorId: number,
-    @Query() paginationDto: PaginationDto,
+    @Query() paginationDto: { page?: number; limit?: number },
   ) {
     return this.moviesService.findByDirector(directorId, paginationDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a movie by ID' })
-  @ApiParam({ name: 'id', type: 'number' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return the movie.',
-  })
-  @ApiResponse({ status: 404, description: 'Movie not found.' })
+  @ApiResponse({ status: 200, description: 'Movie retrieved successfully', type: Movie })
+  @ApiResponse({ status: 404, description: 'Movie not found' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.moviesService.findOne(id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a movie' })
-  @ApiParam({ name: 'id', type: 'number' })
-  @ApiResponse({
-    status: 200,
-    description: 'The movie has been successfully updated.',
-  })
-  @ApiResponse({ status: 404, description: 'Movie not found.' })
+  @ApiResponse({ status: 200, description: 'Movie updated successfully', type: Movie })
+  @ApiResponse({ status: 404, description: 'Movie not found' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateMovieDto: UpdateMovieDto,

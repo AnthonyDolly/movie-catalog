@@ -1,12 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Movie } from './entities/movie.entity';
 import { Genre } from '../genres/entities/genre.entity';
 import { Director } from '../directors/entities/director.entity';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 import { MovieFilterDto } from '../common/dto/pagination.dto';
+import { CacheService } from '../common/services/cache.service';
 
 @Injectable()
 export class MoviesService {
@@ -17,6 +22,7 @@ export class MoviesService {
     private readonly genreRepository: Repository<Genre>,
     @InjectRepository(Director)
     private readonly directorRepository: Repository<Director>,
+    private readonly cacheService: CacheService,
   ) {}
 
   async create(createMovieDto: CreateMovieDto): Promise<Movie> {
@@ -44,11 +50,56 @@ export class MoviesService {
       director,
     });
 
-    return await this.movieRepository.save(movie);
+    const savedMovie = await this.movieRepository.save(movie);
+
+    // Clear movie cache after creating new movie
+    await this.cacheService.clearMovieCache();
+
+    return savedMovie;
   }
 
-  async findAll(filterDto: MovieFilterDto): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
-    const { page = 1, limit = 10, search, genre, director, year, sortBy = 'createdAt', order = 'DESC' } = filterDto;
+  async findAll(
+    filterDto: MovieFilterDto,
+  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      genre,
+      director,
+      year,
+      sortBy = 'createdAt',
+      order = 'DESC',
+    } = filterDto;
+
+    // Generate cache key based on filters
+    const cacheParams = {
+      page,
+      limit,
+      search: search || '',
+      genre: genre || '',
+      director: director || '',
+      year: year || '',
+      sortBy,
+      order,
+    };
+
+    // Try to get from cache first
+    if (search || genre || director || year) {
+      // For search and filtered results, use search cache
+      const cachedResult = await this.cacheService.getSearchMovies(cacheParams);
+      if (cachedResult) {
+        return cachedResult;
+      }
+    } else {
+      // For general listing, use movies cache
+      const cachedResult = await this.cacheService.getMovies(cacheParams);
+      if (cachedResult) {
+        return cachedResult;
+      }
+    }
+
+    // If not in cache, fetch from database
     const skip = (page - 1) * limit;
 
     const queryBuilder: SelectQueryBuilder<Movie> = this.movieRepository
@@ -58,7 +109,9 @@ export class MoviesService {
 
     // Apply search filter
     if (search) {
-      queryBuilder.andWhere('movie.title ILIKE :search', { search: `%${search}%` });
+      queryBuilder.andWhere('movie.title ILIKE :search', {
+        search: `%${search}%`,
+      });
     }
 
     // Apply genre filter
@@ -96,12 +149,21 @@ export class MoviesService {
 
     const [data, total] = await queryBuilder.getManyAndCount();
 
-    return {
+    const result = {
       data,
       total,
       page,
       limit,
     };
+
+    // Cache the result
+    if (search || genre || director || year) {
+      await this.cacheService.setSearchMovies(result, cacheParams);
+    } else {
+      await this.cacheService.setMovies(result, cacheParams);
+    }
+
+    return result;
   }
 
   async findOne(id: number): Promise<Movie> {
@@ -138,7 +200,9 @@ export class MoviesService {
         where: { id: directorId },
       });
       if (!director) {
-        throw new BadRequestException(`Director with ID ${directorId} not found`);
+        throw new BadRequestException(
+          `Director with ID ${directorId} not found`,
+        );
       }
       movie.director = director;
     }
@@ -146,16 +210,40 @@ export class MoviesService {
     // Update other fields
     Object.assign(movie, movieData);
 
-    return await this.movieRepository.save(movie);
+    const updatedMovie = await this.movieRepository.save(movie);
+
+    // Clear movie cache after updating
+    await this.cacheService.clearMovieCache();
+
+    return updatedMovie;
   }
 
   async remove(id: number): Promise<void> {
     const movie = await this.findOne(id);
     await this.movieRepository.remove(movie);
+
+    // Clear movie cache after deleting
+    await this.cacheService.clearMovieCache();
   }
 
-  async findByGenre(genreId: number, paginationDto: { page?: number; limit?: number }): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+  async findByGenre(
+    genreId: number,
+    paginationDto: { page?: number; limit?: number },
+  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 10 } = paginationDto;
+
+    const cacheParams = { page, limit };
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheService.getMoviesByGenre(
+      genreId,
+      cacheParams,
+    );
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    // If not in cache, fetch from database
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.movieRepository.findAndCount({
@@ -166,16 +254,37 @@ export class MoviesService {
       order: { createdAt: 'DESC' },
     });
 
-    return {
+    const result = {
       data,
       total,
       page,
       limit,
     };
+
+    // Cache the result
+    await this.cacheService.setMoviesByGenre(genreId, result, cacheParams);
+
+    return result;
   }
 
-  async findByDirector(directorId: number, paginationDto: { page?: number; limit?: number }): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+  async findByDirector(
+    directorId: number,
+    paginationDto: { page?: number; limit?: number },
+  ): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 10 } = paginationDto;
+
+    const cacheParams = { page, limit };
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheService.getMoviesByDirector(
+      directorId,
+      cacheParams,
+    );
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    // If not in cache, fetch from database
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.movieRepository.findAndCount({
@@ -186,11 +295,63 @@ export class MoviesService {
       order: { createdAt: 'DESC' },
     });
 
-    return {
+    const result = {
       data,
       total,
       page,
       limit,
     };
+
+    // Cache the result
+    await this.cacheService.setMoviesByDirector(
+      directorId,
+      result,
+      cacheParams,
+    );
+
+    return result;
   }
-} 
+
+  /**
+   * Get popular movies (highest rated)
+   */
+  async findPopular(paginationDto: {
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: Movie[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 10 } = paginationDto;
+
+    const cacheParams = { page, limit };
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheService.getPopularMovies(cacheParams);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    // If not in cache, fetch from database
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.movieRepository.findAndCount({
+      relations: ['genre', 'director'],
+      take: limit,
+      skip,
+      order: { rating: 'DESC', createdAt: 'DESC' },
+      where: {
+        rating: 4.0, // Only movies with rating >= 4.0
+      },
+    });
+
+    const result = {
+      data,
+      total,
+      page,
+      limit,
+    };
+
+    // Cache the result for longer since popularity doesn't change often
+    await this.cacheService.setPopularMovies(result, cacheParams);
+
+    return result;
+  }
+}

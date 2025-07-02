@@ -5,21 +5,41 @@ import { Genre } from './entities/genre.entity';
 import { CreateGenreDto } from './dto/create-genre.dto';
 import { UpdateGenreDto } from './dto/update-genre.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { CacheService } from '../common/services/cache.service';
 
 @Injectable()
 export class GenresService {
   constructor(
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
+    private readonly cacheService: CacheService,
   ) {}
 
   async create(createGenreDto: CreateGenreDto): Promise<Genre> {
     const genre = this.genreRepository.create(createGenreDto);
-    return await this.genreRepository.save(genre);
+    const savedGenre = await this.genreRepository.save(genre);
+
+    // Clear cache after creating new genre
+    await this.cacheService.clearGenreCache();
+
+    return savedGenre;
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<{ data: Genre[]; total: number; page: number; limit: number }> {
+  async findAll(
+    paginationDto: PaginationDto,
+  ): Promise<{ data: Genre[]; total: number; page: number; limit: number }> {
     const { page = 1, limit = 10 } = paginationDto;
+
+    // Generate cache key based on pagination
+    const cacheParams = { page, limit };
+
+    // Try to get from cache first
+    const cachedResult = await this.cacheService.getGenres(cacheParams);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    // If not in cache, fetch from database
     const skip = (page - 1) * limit;
 
     const [data, total] = await this.genreRepository.findAndCount({
@@ -28,12 +48,17 @@ export class GenresService {
       order: { name: 'ASC' },
     });
 
-    return {
+    const result = {
       data,
       total,
       page,
       limit,
     };
+
+    // Cache the result
+    await this.cacheService.setGenres(result, cacheParams);
+
+    return result;
   }
 
   async findOne(id: number): Promise<Genre> {
@@ -52,12 +77,21 @@ export class GenresService {
   async update(id: number, updateGenreDto: UpdateGenreDto): Promise<Genre> {
     const genre = await this.findOne(id);
     Object.assign(genre, updateGenreDto);
-    return await this.genreRepository.save(genre);
+
+    const updatedGenre = await this.genreRepository.save(genre);
+
+    // Clear cache after updating
+    await this.cacheService.clearGenreCache();
+
+    return updatedGenre;
   }
 
   async remove(id: number): Promise<void> {
     const genre = await this.findOne(id);
     await this.genreRepository.remove(genre);
+
+    // Clear cache after deleting
+    await this.cacheService.clearGenreCache();
   }
 
   async findByName(name: string): Promise<Genre | null> {
@@ -65,4 +99,4 @@ export class GenresService {
       where: { name },
     });
   }
-} 
+}

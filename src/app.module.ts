@@ -1,32 +1,36 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module, MiddlewareConsumer } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { HealthController } from './health/health.controller';
 import { MoviesModule } from './movies/movies.module';
 import { GenresModule } from './genres/genres.module';
 import { DirectorsModule } from './directors/directors.module';
-import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { CommonModule } from './common/common.module';
+import { DatabaseModule } from './database/database.module';
+import { HealthController } from './health/health.controller';
 import { databaseConfig } from './database/database.config';
-import { SeedService } from './database/seed.service';
-import { Genre } from './genres/entities/genre.entity';
-import { Director } from './directors/entities/director.entity';
-import { Movie } from './movies/entities/movie.entity';
+import { LoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env',
+    }),
     TypeOrmModule.forRoot(databaseConfig),
-    TypeOrmModule.forFeature([Genre, Director, Movie]),
+    CommonModule,
+    DatabaseModule,
     MoviesModule,
     GenresModule,
     DirectorsModule,
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService, SeedService],
-  exports: [SeedService],
+  providers: [AppService],
 })
-export class AppModule implements NestModule {
+export class AppModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes('*path');
+    consumer.apply(LoggerMiddleware).forRoutes('*splat');
+
   }
 }
