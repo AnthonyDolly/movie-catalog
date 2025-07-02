@@ -338,7 +338,7 @@ export class MoviesService {
       skip,
       order: { rating: 'DESC', createdAt: 'DESC' },
       where: {
-        rating: MoreThanOrEqual(0), // Include all movies with rating (excluding null)
+        rating: MoreThanOrEqual(5.0), // Include all movies with rating (excluding null)
       },
     });
 
