@@ -1,8 +1,6 @@
 import { Module, MiddlewareConsumer } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { MoviesModule } from './movies/movies.module';
 import { GenresModule } from './genres/genres.module';
 import { DirectorsModule } from './directors/directors.module';
@@ -25,8 +23,8 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     GenresModule,
     DirectorsModule,
   ],
-  controllers: [AppController, HealthController],
-  providers: [AppService],
+  controllers: [HealthController],
+  providers: [],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
