@@ -10,23 +10,23 @@ export class UploadService {
   private readonly s3Client: S3Client;
   private readonly uploadDir = 'uploads/posters';
   private readonly allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-  private readonly maxFileSize = 5 * 1024 * 1024; // 5MB
+  private readonly maxFileSize = 2 * 1024 * 1024; // 2MB
 
   constructor() {
     // Initialize S3 client for production
     if (process.env.NODE_ENV === 'production') {
-      const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
-      const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-      
-      if (!awsAccessKeyId || !awsSecretAccessKey) {
+      const awsAccessKey = process.env.AWS_ACCESS_KEY;
+      const awsSecretKey = process.env.AWS_SECRET_KEY;
+
+      if (!awsAccessKey || !awsSecretKey) {
         throw new Error('AWS credentials are required for production environment');
       }
-      
+
       this.s3Client = new S3Client({
         region: process.env.AWS_REGION || 'us-east-1',
         credentials: {
-          accessKeyId: awsAccessKeyId,
-          secretAccessKey: awsSecretAccessKey,
+          accessKeyId: awsAccessKey,
+          secretAccessKey: awsSecretKey,
         },
       });
     }
@@ -106,9 +106,9 @@ export class UploadService {
    */
   private async uploadToS3(file: Express.Multer.File, fileName: string): Promise<string> {
     try {
-      const bucketName = process.env.AWS_S3_BUCKET;
+      const bucketName = process.env.AWS_S3_BUCKET_NAME;
       if (!bucketName) {
-        throw new Error('AWS_S3_BUCKET environment variable is not set');
+        throw new Error('AWS_S3_BUCKET_NAME environment variable is not set');
       }
 
       const key = `posters/${fileName}`;
@@ -155,7 +155,7 @@ export class UploadService {
    * Delete from S3
    */
   private async deleteFromS3(posterUrl: string): Promise<void> {
-    const bucketName = process.env.AWS_S3_BUCKET;
+    const bucketName = process.env.AWS_S3_BUCKET_NAME;
     // Extract key from URL: https://bucket.s3.amazonaws.com/posters/file.jpg -> posters/file.jpg
     const key = posterUrl.split('.amazonaws.com/')[1];
     
