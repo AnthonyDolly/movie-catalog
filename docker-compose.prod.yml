@@ -67,7 +67,7 @@ services:
     networks:
       - movie-catalog-prod
     healthcheck:
-      test: ['CMD', 'curl', '-f', '${BASE_URL}:${PORT}/health']
+      test: ['CMD', 'curl', '-f', '${BASE_URL}:${PORT}/api/v1/health']
       interval: 30s
       timeout: 10s
       retries: 3
