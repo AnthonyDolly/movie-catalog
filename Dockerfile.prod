@@ -35,8 +35,10 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy built application from builder stage
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 
-# Copy any other necessary files
-COPY --chown=nestjs:nodejs . .
+# Copy only specific files needed for production (not the entire source)
+COPY --chown=nestjs:nodejs package*.json ./
+
+# Note: Using S3 for file uploads, no local uploads directory needed
 
 # Switch to non-root user
 USER nestjs

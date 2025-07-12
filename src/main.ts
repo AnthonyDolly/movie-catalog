@@ -45,7 +45,9 @@ async function bootstrap() {
   // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('Movie Catalog API')
-    .setDescription('A comprehensive API for managing movies, genres, and directors with Redis caching')
+    .setDescription(
+      'A comprehensive API for managing movies, genres, and directors with Redis caching',
+    )
     .setVersion('1.0')
     .addTag('Movies', 'Movie management operations')
     .addTag('Genres', 'Genre management operations')
@@ -62,20 +64,24 @@ async function bootstrap() {
     },
   });
 
-  // Execute seed automatically
-  try {
-    const seedService = app.get(SeedService);
-    await seedService.seed();
-  } catch (error) {
-    logger.error('Failed to execute seed:', error);
+  // Execute seed automatically if not in production
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const seedService = app.get(SeedService);
+      await seedService.seed();
+    } catch (error) {
+      logger.error('Failed to execute seed:', error);
+    }
   }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  
+
   logger.log(`🚀 Application is running on: http://localhost:${port}`);
   logger.log(`🎬 API endpoints: http://localhost:${port}/api/v1`);
   logger.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);
-  logger.log(`💾 Redis cache: ${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`);
+  logger.log(
+    `💾 Redis cache: ${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+  );
 }
 bootstrap();
